@@ -17,17 +17,19 @@ public:
     std::function<void()> backward;
     std::string op;
     std::set<std::shared_ptr<Tensor>> prev;
+    bool requires_grad = true;
 
     /*functions*/
-    
+
     /*constructor*/
     Tensor(const std::vector<double>& data_, 
            const std::vector<size_t>& shape_,
-           const std::string &op = "");
+           const std::string &op = "",
+           bool requires_grad_ = true);
 
     /*index in flattened tensor*/
     size_t idx(const std::vector<size_t>& indices) const;
-    
+
     /*indexing*/
     double& operator()(const std::initializer_list<size_t>& indices);
     const double& operator()(const std::initializer_list<size_t>& indices) const;
@@ -37,7 +39,7 @@ public:
     std::shared_ptr<Tensor> operator-();                               //negate
     std::shared_ptr<Tensor> operator-(std::shared_ptr<Tensor> other);  //minus
     std::shared_ptr<Tensor> operator*(std::shared_ptr<Tensor> other);  //multiply
-    std::shared_ptr<Tensor> pow(const double other);  //power
+    std::shared_ptr<Tensor> pow(const double other);                   //power
     std::shared_ptr<Tensor> operator/(std::shared_ptr<Tensor> other);  //divide
 
     /* broadcasting */

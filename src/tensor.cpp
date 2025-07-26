@@ -7,8 +7,9 @@
  */
 Tensor::Tensor(const std::vector<double>& data_, 
                const std::vector<size_t>& shape_,
-               const std::string &op) 
-            :data(data_), shape(shape_), op(op){
+               const std::string &op,
+               bool requires_grad_) 
+            :data(data_), shape(shape_), op(op), requires_grad(requires_grad_) {
     grad.resize(data.size());
     std::fill(grad.begin(), grad.end(), 0.0);
     stride.resize(shape.size());
@@ -62,6 +63,7 @@ std::shared_ptr<Tensor> Tensor::operator+(std::shared_ptr<Tensor> other){
     out->prev.insert(self);
     out->prev.insert(other);
     out->backward = [out_shape, self, other, out](){
+        if(self->requires_grad == false && other->requires_grad == false) return;
         out->traverse(out_shape, [&](const std::vector<size_t>& out_idx){
             size_t flatten_idx = 0, stride_val = 1;
             for(int i = (int)out_shape.size() - 1; i >= 0; i--){
@@ -71,8 +73,8 @@ std::shared_ptr<Tensor> Tensor::operator+(std::shared_ptr<Tensor> other){
             std::vector<size_t> self_idx = self->broadcastIdx(out_idx, self->shape);
             std::vector<size_t> other_idx = other->broadcastIdx(out_idx, other->shape);
             double self_val = self->data[self->idx(self_idx)], other_val = other->data[other->idx(other_idx)];
-            self->grad[self->idx(self_idx)] += 1.0 * out->grad[flatten_idx];
-            other->grad[other->idx(other_idx)] += 1.0 * out->grad[flatten_idx];
+            if(self->requires_grad)self->grad[self->idx(self_idx)] += 1.0 * out->grad[flatten_idx];
+            if(other->requires_grad)other->grad[other->idx(other_idx)] += 1.0 * out->grad[flatten_idx];
         });
     };
     return out;
@@ -86,8 +88,9 @@ std::shared_ptr<Tensor> Tensor::operator-() {
     auto self = shared_from_this();
     out->prev.insert(self);
     out->backward = [self, out](){
-        for(size_t i = 0; i < self->data.size(); i++)
-            self->grad[i] = -1.0 * out->grad[i];
+        if(!self->requires_grad)return;
+        for(size_t i = 0; i < self->grad.size(); i++)
+            if(self->requires_grad)self->grad[i] = -1.0 * out->grad[i];
     };
     return out;
 }
@@ -112,6 +115,7 @@ std::shared_ptr<Tensor> Tensor::operator-(std::shared_ptr<Tensor> other) {
     out->prev.insert(self);
     out->prev.insert(other);
     out->backward = [out_shape, self, other, out](){
+        if(self->requires_grad == false && other->requires_grad == false) return;
         out->traverse(out_shape, [&](const std::vector<size_t>& out_idx){
             size_t flatten_idx = 0, stride_val = 1;
             for(int i = (int)out_shape.size() - 1; i >= 0; i--){
@@ -121,8 +125,8 @@ std::shared_ptr<Tensor> Tensor::operator-(std::shared_ptr<Tensor> other) {
             std::vector<size_t> self_idx = self->broadcastIdx(out_idx, self->shape);
             std::vector<size_t> other_idx = other->broadcastIdx(out_idx, other->shape);
             double self_val = self->data[self->idx(self_idx)], other_val = other->data[other->idx(other_idx)];
-            self->grad[self->idx(self_idx)] += 1.0 * out->grad[flatten_idx];
-            other->grad[other->idx(other_idx)] += -1.0 * out->grad[flatten_idx];
+            if(self->requires_grad)self->grad[self->idx(self_idx)] += 1.0 * out->grad[flatten_idx];
+            if(other->requires_grad)other->grad[other->idx(other_idx)] += -1.0 * out->grad[flatten_idx];
         });
     };
     return out;
@@ -148,6 +152,7 @@ std::shared_ptr<Tensor> Tensor::operator*(std::shared_ptr<Tensor> other) {
     out->prev.insert(self);
     out->prev.insert(other);
     out->backward = [out_shape, self, other, out](){
+        if(self->requires_grad == false && other->requires_grad == false) return;
         out->traverse(out_shape, [&](const std::vector<size_t>& out_idx){
             size_t flatten_idx = 0, stride_val = 1;
             for(int i = (int)out_shape.size() - 1; i >= 0; i--){
@@ -157,8 +162,8 @@ std::shared_ptr<Tensor> Tensor::operator*(std::shared_ptr<Tensor> other) {
             std::vector<size_t> self_idx = self->broadcastIdx(out_idx, self->shape);
             std::vector<size_t> other_idx = other->broadcastIdx(out_idx, other->shape);
             double self_val = self->data[self->idx(self_idx)], other_val = other->data[other->idx(other_idx)];
-            self->grad[self->idx(self_idx)] += other_val * out->grad[flatten_idx];
-            other->grad[other->idx(other_idx)] += self_val * out->grad[flatten_idx];
+            if(self->requires_grad)self->grad[self->idx(self_idx)] += other_val * out->grad[flatten_idx];
+            if(other->requires_grad)other->grad[other->idx(other_idx)] += self_val * out->grad[flatten_idx];
         });
     };
     return out;
@@ -172,7 +177,8 @@ std::shared_ptr<Tensor> Tensor::pow(const double other) {
     auto self = shared_from_this();
     out->prev.insert(self);
     out->backward = [self, other, out](){
-       for(size_t i = 0; i < self->data.size(); i++) {
+        if(self->requires_grad == false) return;
+        for(size_t i = 0; i < self->data.size(); i++) {
             double self_val = self->data[i];
             self->grad[i] += other * std::pow(self_val, other - 1) * out->grad[i];
         }
