@@ -42,7 +42,7 @@ public:
     std::shared_ptr<Tensor> pow(const double other);                   //power
     std::shared_ptr<Tensor> operator/(std::shared_ptr<Tensor> other);  //divide
     std::shared_ptr<Tensor> matmul2d(std::shared_ptr<Tensor> other);   //matrix multiply
-    std::shared_ptr<Tensor> transpose(size_t a, size_t b);             //transpose                           //transpose
+    std::shared_ptr<Tensor> transpose(size_t a, size_t b);             //transpose
 
     /* broadcasting */
     std::vector<size_t> broadcastShape(const std::vector<size_t>& a, const std::vector<size_t>& b) const;
