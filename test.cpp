@@ -2,6 +2,8 @@
 #include <bits/stdc++.h>
 #include "./include/functional.hpp"
 #include "./include/nn/linear.hpp"
+#include "./include/criterion/mse_loss.hpp"
+#include "./include/criterion/cross_entropy_loss.hpp"
 void print_tensor(const std::string& name, std::shared_ptr<Tensor> t) {
     std::cout << name << " data: ";
     for (const auto& val : t->data) {
@@ -204,5 +206,90 @@ int main() {
     // print_grad("out1_grad", out1);
     // print_grad("act1_grad", act1);
     // print_grad("out2_grad", out2);
+    // === MSELoss test case ===
+    // std::cout << "\n=== Test MSELoss ===" << std::endl;
+    // auto mse = std::make_shared<MSELoss>();
+
+    // // 1：output = [1,2,3], label = [1,2,3]，loss=0
+    // auto out1 = std::make_shared<Tensor>(std::vector<double>{1,2,3}, std::vector<size_t>{3});
+    // auto label1 = std::make_shared<Tensor>(std::vector<double>{1,2,3}, std::vector<size_t>{3});
+    // out1->requires_grad = true;
+    // label1->requires_grad = true;
+    // auto loss1 = (*mse)(out1, label1);
+    // print_tensor("loss1", loss1); // 0
+    // loss1->grad = {1.0};
+    // loss1->backwardAll();
+    // print_grad("out1_grad", out1);    // [0,0,0]
+    // print_grad("label1_grad", label1);// [0,0,0]
+
+    // // 2：output = [2,4], label = [1,3]，loss=((2-1)^2 + (4-3)^2)/2 = (1+1)/2 = 1
+    // auto out2 = std::make_shared<Tensor>(std::vector<double>{2,4}, std::vector<size_t>{2});
+    // auto label2 = std::make_shared<Tensor>(std::vector<double>{1,3}, std::vector<size_t>{2});
+    // out2->requires_grad = true;
+    // label2->requires_grad = true;
+    // auto loss2 = (*mse)(out2, label2);
+    // print_tensor("loss2", loss2); // 1
+    // loss2->grad = {1.0};
+    // loss2->backwardAll();
+    // print_grad("out2_grad", out2);    // [(2-1)*2/2=1, (4-3)*2/2=1]
+    // print_grad("label2_grad", label2);// [-1, -1]
+
+    // // 3：output = [0,0], label = [1,1]，loss=((0-1)^2 + (0-1)^2)/2 = (1+1)/2 = 1
+    // auto out3 = std::make_shared<Tensor>(std::vector<double>{0,0}, std::vector<size_t>{2});
+    // auto label3 = std::make_shared<Tensor>(std::vector<double>{1,1}, std::vector<size_t>{2});
+    // out3->requires_grad = true;
+    // label3->requires_grad = true;
+    // auto loss3 = (*mse)(out3, label3);
+    // print_tensor("loss3", loss3); // 1
+    // loss3->grad = {1.0};
+    // loss3->backwardAll();
+    // print_grad("out3_grad", out3);    // [-1, -1]
+    // print_grad("label3_grad", label3);// [1, 1]
+
+    // // 4：output = [1,2,3,4], label = [4,3,2,1]，shape=[2,2]
+    // // loss = ((1-4)^2 + (2-3)^2 + (3-2)^2 + (4-1)^2)/4 = (9+1+1+9)/4 = 20/4 = 5
+    // // output_grad: [2*(1-4)/4= -1.5, 2*(2-3)/4= -0.5, 2*(3-2)/4=0.5, 2*(4-1)/4=1.5]
+    // // label_grad:  [2*(4-1)/4=1.5, 2*(3-2)/4=0.5, 2*(2-3)/4=-0.5, 2*(1-4)/4=-1.5]
+    // auto out4 = std::make_shared<Tensor>(std::vector<double>{1,2,3,4}, std::vector<size_t>{2,2});
+    // auto label4 = std::make_shared<Tensor>(std::vector<double>{4,3,2,1}, std::vector<size_t>{2,2});
+    // out4->requires_grad = true;
+    // label4->requires_grad = true;
+    // auto loss4 = (*mse)(out4, label4);
+    // print_tensor("loss4", loss4); // 5
+    // loss4->grad = {1.0};
+    // loss4->backwardAll();
+    // print_grad("out4_grad", out4);    // [-1.5, -0.5, 0.5, 1.5]
+    // print_grad("label4_grad", label4);// [1.5, 0.5, -0.5, -1.5]
+
+    // === CrossEntropyLoss test case ===
+    std::cout << "\n=== Test CrossEntropyLoss ===" << std::endl;
+    auto cross_entropy = std::make_shared<CrossEntropyLoss>();
+
+    // 例1：output = [0.7, 0.2, 0.1], label = [1,0,0] (one-hot)
+    // loss = -[1*log(0.7) + 0*log(0.2) + 0*log(0.1)] ≈ -log(0.7) ≈ 0.3567
+    auto ce_out1 = std::make_shared<Tensor>(std::vector<double>{0.7, 0.2, 0.1}, std::vector<size_t>{3});
+    auto ce_label1 = std::make_shared<Tensor>(std::vector<double>{1,0,0}, std::vector<size_t>{3});
+    ce_out1->requires_grad = true;
+    ce_label1->requires_grad = true;
+    auto ce_loss1 = (*cross_entropy)(ce_out1, ce_label1);
+    print_tensor("ce_loss1", ce_loss1); // ≈0.3567
+    ce_loss1->grad = {1.0};
+    ce_loss1->backwardAll();
+    print_grad("ce_out1_grad", ce_out1);    // [ -1/0.7, 0, 0 ] ≈ [-1.4286, 0, 0]
+    print_grad("ce_label1_grad", ce_label1);// [ -log(0.7), -log(0.2), -log(0.1) ] ≈ [ -0.3567, -1.6094, -2.3026 ]
+
+    // 例2：output = [0.1, 0.8, 0.1], label = [0,1,0]
+    // loss = -log(0.8) ≈ 0.2231
+    auto ce_out2 = std::make_shared<Tensor>(std::vector<double>{0.1, 0.8, 0.1}, std::vector<size_t>{3});
+    auto ce_label2 = std::make_shared<Tensor>(std::vector<double>{0,1,0}, std::vector<size_t>{3});
+    ce_out2->requires_grad = true;
+    ce_label2->requires_grad = true;
+    auto ce_loss2 = (*cross_entropy)(ce_out2, ce_label2);
+    print_tensor("ce_loss2", ce_loss2); // ≈0.2231
+    ce_loss2->grad = {1.0};
+    ce_loss2->backwardAll();
+    print_grad("ce_out2_grad", ce_out2);    // [0, -1/0.8, 0] ≈ [0, -1.25, 0]
+    print_grad("ce_label2_grad", ce_label2);// [ -log(0.1), -log(0.8), -log(0.1) ] ≈ [2.3026, -0.2231, 2.3026]
+
     return 0;
 }
