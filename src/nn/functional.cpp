@@ -3,7 +3,7 @@
     relu, sigmoid, tanh
 */
 
-#include "../include/functional.hpp"
+#include "../include/nn/functional.hpp"
 #include <cmath>
 namespace Functional
 {

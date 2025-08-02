@@ -1,9 +1,9 @@
 #include "./include/tensor.hpp"
-#include <bits/stdc++.h>
-#include "./include/functional.hpp"
+#include "./include/nn/functional.hpp"
 #include "./include/nn/linear.hpp"
 #include "./include/criterion/mse_loss.hpp"
 #include "./include/criterion/cross_entropy_loss.hpp"
+#include "./include/optimizer/adam.hpp"
 void print_tensor(const std::string& name, std::shared_ptr<Tensor> t) {
     std::cout << name << " data: ";
     for (const auto& val : t->data) {
@@ -265,7 +265,7 @@ int main() {
     std::cout << "\n=== Test CrossEntropyLoss ===" << std::endl;
     auto cross_entropy = std::make_shared<CrossEntropyLoss>();
 
-    // 例1：output = [0.7, 0.2, 0.1], label = [1,0,0] (one-hot)
+    // 1：output = [0.7, 0.2, 0.1], label = [1,0,0] (one-hot)
     // loss = -[1*log(0.7) + 0*log(0.2) + 0*log(0.1)] ≈ -log(0.7) ≈ 0.3567
     auto ce_out1 = std::make_shared<Tensor>(std::vector<double>{0.7, 0.2, 0.1}, std::vector<size_t>{3});
     auto ce_label1 = std::make_shared<Tensor>(std::vector<double>{1,0,0}, std::vector<size_t>{3});
@@ -290,6 +290,21 @@ int main() {
     ce_loss2->backwardAll();
     print_grad("ce_out2_grad", ce_out2);    // [0, -1/0.8, 0] ≈ [0, -1.25, 0]
     print_grad("ce_label2_grad", ce_label2);// [ -log(0.1), -log(0.8), -log(0.1) ] ≈ [2.3026, -0.2231, 2.3026]
+
+    // === Adam Optimizer correctness test ===
+    std::cout << "\n=== Test Adam Optimizer ===" << std::endl;
+    auto param = std::make_shared<Tensor>(std::vector<double>{0.0}, std::vector<size_t>{1});
+    param->requires_grad = true;
+    Adam adam(param, 0.1);
+
+    for (int step = 0; step < 100; ++step) {
+        auto loss = std::make_shared<Tensor>(std::vector<double>{(param->data[0] - 3.0) * (param->data[0] - 3.0)}, std::vector<size_t>{1});
+        loss->requires_grad = true;
+        param->grad[0] = 2.0 * (param->data[0] - 3.0);
+        adam.step();
+        adam.zero_grad();
+        std::cout << "Step " << step << ": x = " << param->data[0] << ", loss = " << loss->data[0] << std::endl;
+    }
 
     return 0;
 }
