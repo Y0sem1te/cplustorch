@@ -240,25 +240,41 @@ namespace at::native {
         return out;
     }
     std::shared_ptr<Tensor> matmul(std::shared_ptr<Tensor> self, std::shared_ptr<Tensor> other){
-        if (self->shape.size() < 2 || other->shape.size() < 2)
-            throw std::invalid_argument("Both tensors must have at least 2 dimensions for matrix multiplication");
-        if (self->shape.back() != other->shape[other->shape.size() - 2])
+        // Handle 1D tensors
+        bool self_is_1d = (self->shape.size() == 1);
+        bool other_is_1d = (other->shape.size() == 1);
+        
+        // Create working shapes (promote 1D to 2D for computation)
+        std::vector<size_t> self_work_shape = self->shape;
+        std::vector<size_t> other_work_shape = other->shape;
+        
+        if (self_is_1d) {
+            self_work_shape = {1, self->shape[0]}; // [n] -> [1, n]
+        }
+        if (other_is_1d) {
+            other_work_shape = {other->shape[0], 1}; // [n] -> [n, 1]
+        }
+        
+        if (self_work_shape.back() != other_work_shape[other_work_shape.size() - 2])
             throw std::invalid_argument("Shapes are not aligned for matrix multiplication");
         
-        // involved in multiplication
-        size_t self_rows = self->shape[self->shape.size() - 2];
-        size_t self_cols = self->shape[self->shape.size() - 1];
-        size_t other_rows = other->shape[other->shape.size() - 2];
-        size_t other_cols = other->shape[other->shape.size() - 1];
+        size_t self_rows = self_work_shape[self_work_shape.size() - 2];
+        size_t self_cols = self_work_shape[self_work_shape.size() - 1];
+        size_t other_rows = other_work_shape[other_work_shape.size() - 2];
+        size_t other_cols = other_work_shape[other_work_shape.size() - 1];
         
-        // batch dimensions
-        std::vector<size_t> self_batch_dims(self->shape.begin(), self->shape.end() - 2);
-        std::vector<size_t> other_batch_dims(other->shape.begin(), other->shape.end() - 2);
+        std::vector<size_t> self_batch_dims(self_work_shape.begin(), self_work_shape.end() - 2);
+        std::vector<size_t> other_batch_dims(other_work_shape.begin(), other_work_shape.end() - 2);
         std::vector<size_t> batch_shape = at::broadcastShape(self_batch_dims, other_batch_dims);
         
         std::vector<size_t> out_shape = batch_shape;
-        out_shape.push_back(self_rows);
-        out_shape.push_back(other_cols);
+        if (!self_is_1d) out_shape.push_back(self_rows);
+        if (!other_is_1d) out_shape.push_back(other_cols);
+        
+        // Handle scalar result (both 1D with same length)
+        if (self_is_1d && other_is_1d) {
+            out_shape.push_back(1); // scalar result as [1]
+        }
         
         size_t out_size = std::accumulate(out_shape.begin(), out_shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
         std::vector<double> res(out_size, 0.0);
@@ -312,9 +328,9 @@ namespace at::native {
         out->backward_it = [batch_shape, self_batch_dims, other_batch_dims, self_rows, self_cols, other_rows, other_cols, self, other, out](){
             if (self->require_grad == false && other->require_grad == false)
                 return;
-
+            
             size_t batch_size = std::accumulate(batch_shape.begin(), batch_shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
-
+            
             for (size_t batch = 0; batch < batch_size; batch++) {
                 std::vector<size_t> batch_idx(batch_shape.size());
                 size_t temp_batch = batch;

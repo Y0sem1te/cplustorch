@@ -57,13 +57,12 @@ std::shared_ptr<Tensor> Tensor::pow(double v){
 std::shared_ptr<Tensor> Tensor::matmul(std::shared_ptr<Tensor> other){
     return native::matmul(shared_from_this(), other);
 };
-
 std::shared_ptr<Tensor> Tensor::transpose(size_t dim0, size_t dim1){
     return native::transpose(shared_from_this(), dim0, dim1);
 }
 
 void Tensor::backward(){
-    autograd::Engine eng(shared_from_this());
+    torch::autograd::Engine eng(shared_from_this());
     eng.topsort();
     eng.execute();
 }

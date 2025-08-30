@@ -1,11 +1,11 @@
 #include "../../include/autograd/engine.hpp"
 #include "../../../aten/include/tensor.hpp"
 
-namespace at::autograd {
+namespace torch::autograd {
 
-Engine::Engine(std::shared_ptr<Tensor> _root) :root(_root){}
+Engine::Engine(std::shared_ptr<at::Tensor> _root) :root(_root){}
 
-void Engine::dfs(std::shared_ptr<Tensor> node){
+void Engine::dfs(std::shared_ptr<at::Tensor> node){
     if(st.count(node)) return;
     st.insert(node);
     for(auto it: node->prev){
