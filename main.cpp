@@ -20,9 +20,9 @@ public:
         : fc1(std::make_shared<torch::nn::Linear>(input_size, hidden1_size)),
           fc2(std::make_shared<torch::nn::Linear>(hidden1_size, hidden2_size)),
           fc3(std::make_shared<torch::nn::Linear>(hidden2_size, output_size)) {
-        register_module("fc1", std::static_pointer_cast<torch::nn::Module>(fc1));
-        register_module("fc2", std::static_pointer_cast<torch::nn::Module>(fc2));
-        register_module("fc3", std::static_pointer_cast<torch::nn::Module>(fc3));
+        register_module("fc1", fc1);
+        register_module("fc2", fc2);
+        register_module("fc3", fc3);
     }
 
     std::shared_ptr<at::Tensor> forward(const std::shared_ptr<at::Tensor> input) override {
@@ -109,14 +109,14 @@ int main() {
     try {
         // 1. create multi-layer perceptron (1 -> 16 -> 8 -> 1)
         std::cout << "1. Creating Multi-Layer Perceptron..." << std::endl;
-        auto model = std::make_shared<MLP>(1, 16, 8, 1);
+        auto model = MLP(1, 16, 8, 1);
         std::cout << "   Network architecture: 1 -> 16 -> 8 -> 1" << std::endl;
 
         // 2. create optimizer
-        auto params = model->parameters();
+        auto params = model.parameters();
         std::cout << "   Total parameters: " << params.size() << std::endl;
-        torch::optim::Adam optimizer(params, 0.001); 
-        std::cout << "   Optimizer: Adam (lr=0.001)" << std::endl;
+        torch::optim::Adam optimizer(params, 0.0001); 
+        std::cout << "   Optimizer: Adam (lr=0.0001)" << std::endl;
         
         // 3. create criterion
         torch::nn::MSELoss criterion;
@@ -135,7 +135,7 @@ int main() {
         
         // 5. training loop
         std::cout << "3. Starting training..." << std::endl;
-        int num_epochs = 1000;
+        int num_epochs = 5000;
         int print_every = 50;
         
         for (int epoch = 0; epoch < num_epochs; ++epoch) {
@@ -144,7 +144,7 @@ int main() {
             // training stage
             for (size_t i = 0; i < train_inputs.size(); ++i) {
                 // forward pass
-                auto prediction = model->forward(train_inputs[i]);
+                auto prediction = model.forward(train_inputs[i]);
                 auto loss = criterion.forward(prediction, train_targets[i]);
 
                 // backward pass
@@ -167,7 +167,7 @@ int main() {
                 double test_loss = 0.0;
                 
                 for (size_t i = 0; i < test_inputs.size(); ++i) {
-                    auto pred = model->forward(test_inputs[i]);
+                    auto pred = model.forward(test_inputs[i]);
                     auto loss = criterion.forward(pred, test_targets[i]);
                     test_predictions.push_back(pred);
                     test_loss += loss->data[0];
@@ -198,7 +198,7 @@ int main() {
                 false
             );
             
-            auto prediction = model->forward(test_input);
+            auto prediction = model.forward(test_input);
             double actual = std::sin(2.0 * M_PI * x) + 0.5 * x * x;
             double error = std::abs(prediction->data[0] - actual);
             
